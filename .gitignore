@@ -13,6 +13,7 @@ pnpm-debug.log*
 .env.*
 .env.local
 config/local.json
+data/
 
 # Builds / coverage
 dist/

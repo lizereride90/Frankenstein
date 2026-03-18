@@ -1,4 +1,13 @@
-import { Client, Collection, GatewayIntentBits, Partials, REST, Routes } from 'discord.js';
+import {
+  ChannelType,
+  Client,
+  Collection,
+  GatewayIntentBits,
+  Partials,
+  PermissionFlagsBits,
+  REST,
+  Routes,
+} from 'discord.js';
 import { loadCommands } from './commandLoader.js';
 import { ensureDataFiles, readSettings, writeSettings } from '../utils/storage.js';
 
@@ -19,7 +28,15 @@ export class FrankensteinClient extends Client {
     this.log = logger;
     this.messageCommands = new Collection();
     this.slashCommands = [];
-    this.settings = { autoroleId: null, blacklist: [] };
+    this.settings = {
+      autoroleId: null,
+      blacklist: [],
+      ticketStaffRoleId: null,
+      ticketCategoryId: null,
+      welcomeChannelId: null,
+      welcomeMessage: null,
+      welcomeMention: false,
+    };
   }
 
   async init() {
@@ -100,13 +117,33 @@ export class FrankensteinClient extends Client {
     });
 
     this.on('guildMemberAdd', async (member) => {
-      if (!this.settings.autoroleId) return;
-      const role = member.guild.roles.cache.get(this.settings.autoroleId);
-      if (!role) return;
-      try {
-        await member.roles.add(role, 'autorole enabled');
-      } catch (err) {
-        this.log.error({ err }, 'Failed to add autorole');
+      // Autorole
+      if (this.settings.autoroleId) {
+        const role = member.guild.roles.cache.get(this.settings.autoroleId);
+        if (role) {
+          try {
+            await member.roles.add(role, 'autorole enabled');
+          } catch (err) {
+            this.log.error({ err }, 'Failed to add autorole');
+          }
+        }
+      }
+
+      // Welcome message
+      if (this.settings.welcomeChannelId) {
+        const channel = member.guild.channels.cache.get(this.settings.welcomeChannelId);
+        if (channel && channel.type === ChannelType.GuildText) {
+          const template =
+            this.settings.welcomeMessage ?? 'Welcome {user} to {server}! Enjoy your stay.';
+          const content = template
+            .replaceAll('{user}', this.settings.welcomeMention ? member.toString() : member.user.tag)
+            .replaceAll('{server}', member.guild.name);
+          try {
+            await channel.send({ content });
+          } catch (err) {
+            this.log.error({ err }, 'Failed to send welcome message');
+          }
+        }
       }
     });
   }

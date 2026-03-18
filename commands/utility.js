@@ -303,6 +303,6 @@ const simpleCommands = simpleReplies.map((c) =>
   choices(c.name, c.description, [], async (i) => i.reply(c.reply)),
 );
 
-const targetCount = 92; // combine with existing moderation commands to stay under Discord's 100-command limit
+const targetCount = 88; // leave room for ticket + welcome commands, keep total under 100
 
 export const commands = [...simpleCommands, ...makeTransformCommands, ...baseCommands, ...fillerCommands].slice(0, targetCount);
