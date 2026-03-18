@@ -1,0 +1,19 @@
+{
+  "name": "Frankenstein",
+  "version": "0.1.0",
+  "prefix": "!",
+  "owner_ids": [],
+  "presence": {
+    "status": "online",
+    "activity_type": "watching",
+    "activity_text": "the lab monitors"
+  },
+  "command_sync": {
+    "sync_on_start": true,
+    "prefer_guild": true
+  },
+  "guild_allowlist": [],
+  "extensions_path": "commands",
+  "data_dir": "data",
+  "log_level": "INFO"
+}

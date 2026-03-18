@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+*.log
+.venv/
+venv/
+.env.local
+
+# Local config
+config/local.json
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# PyInstaller / build
+build/
+dist/
+*.spec
+
+# Mypy/coverage
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data
+/data/*.db
