@@ -546,6 +546,70 @@ const extraCommands = [
     const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
     await i.reply(`Average: ${avg.toFixed(3)}`);
   }),
+  choices('snakecase', 'Convert to snake_case', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true).trim();
+    await i.reply(text.toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, ''));
+  }),
+  choices('kebabcase', 'Convert to kebab-case', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true).trim();
+    await i.reply(text.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, ''));
+  }),
+  choices('vowelcount', 'Count vowels', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true).toLowerCase();
+    const count = (text.match(/[aeiou]/g) || []).length;
+    await i.reply(`Vowels: ${count}`);
+  }),
+  choices('consonantcount', 'Count consonants', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true).toLowerCase();
+    const count = (text.match(/[bcdfghjklmnpqrstvwxyz]/g) || []).length;
+    await i.reply(`Consonants: ${count}`);
+  }),
+  choices('stripspaces', 'Remove all spaces', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply(i.options.getString('text', true).replace(/\s+/g, ''));
+  }),
+  choices('wordshuffle', 'Shuffle words', [{ type: 'string', name: 'text', description: 'Words to shuffle', required: true }], async (i) => {
+    const words = i.options.getString('text', true).trim().split(/\s+/);
+    for (let idx = words.length - 1; idx > 0; idx -= 1) {
+      const j = Math.floor(Math.random() * (idx + 1));
+      [words[idx], words[j]] = [words[j], words[idx]];
+    }
+    await i.reply(words.join(' '));
+  }),
+  choices('wordfreq', 'Most frequent word', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const words = i.options.getString('text', true).toLowerCase().match(/[a-z0-9']+/g) || [];
+    if (!words.length) return i.reply({ content: 'No words found.', ephemeral: true });
+    const freq = new Map();
+    for (const w of words) freq.set(w, (freq.get(w) || 0) + 1);
+    const top = [...freq.entries()].sort((a, b) => b[1] - a[1])[0];
+    await i.reply(`Top word: **${top[0]}** (${top[1]}x)`);
+  }),
+  choices('pair', 'Pick a random pair from comma list', [{ type: 'string', name: 'items', description: 'a,b,c', required: true }], async (i) => {
+    const items = i.options.getString('items', true).split(',').map((s) => s.trim()).filter(Boolean);
+    if (items.length < 2) return i.reply({ content: 'Provide at least two items.', ephemeral: true });
+    const a = items.splice(Math.floor(Math.random() * items.length), 1)[0];
+    const b = items[Math.floor(Math.random() * items.length)];
+    await i.reply(`Chosen pair: **${a}** & **${b}**`);
+  }),
+  choices('range', 'Generate a number range', [
+    { type: 'integer', name: 'start', description: 'Start', required: true },
+    { type: 'integer', name: 'end', description: 'End (inclusive)', required: true },
+    { type: 'integer', name: 'step', description: 'Step', required: false },
+  ], async (i) => {
+    const start = i.options.getInteger('start', true);
+    const end = i.options.getInteger('end', true);
+    const step = i.options.getInteger('step') || (end >= start ? 1 : -1);
+    if (step === 0) return i.reply({ content: 'Step cannot be zero.', ephemeral: true });
+    const out = [];
+    for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
+      out.push(n);
+      if (out.length > 200) break;
+    }
+    await i.reply(out.join(', '));
+  }),
+  choices('upperfirst', 'Capitalize first letter', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const t = i.options.getString('text', true);
+    await i.reply(t.charAt(0).toUpperCase() + t.slice(1));
+  }),
 ];
 
 const simpleCommands = simpleReplies.map((c) =>
