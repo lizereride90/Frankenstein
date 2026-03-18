@@ -21,20 +21,25 @@ export const loadCommands = async (commandsPath, logger) => {
     const fullPath = path.join(commandsPath, file);
     try {
       const mod = await import(pathToFileURL(fullPath).href);
-      if (
-        (mod.data instanceof SlashCommandBuilder || mod.data instanceof ContextMenuCommandBuilder) &&
-        typeof mod.execute === 'function'
-      ) {
-        slashCommands.push(mod);
-      }
-      const name = mod.name || mod.data?.name;
-      if (name && typeof mod.executeMessage === 'function') {
-        messageCommands.set(name, mod);
-        for (const alias of mod.aliases || []) {
-          messageCommands.set(alias, mod);
+      const candidateList = Array.isArray(mod.commands) ? mod.commands : [mod];
+      for (const candidate of candidateList) {
+        if (
+          (candidate.data instanceof SlashCommandBuilder ||
+            candidate.data instanceof ContextMenuCommandBuilder) &&
+          typeof candidate.execute === 'function'
+        ) {
+          slashCommands.push(candidate);
+        }
+
+        const name = candidate.name || candidate.data?.name;
+        if (name && typeof candidate.executeMessage === 'function') {
+          messageCommands.set(name, candidate);
+          for (const alias of candidate.aliases || []) {
+            messageCommands.set(alias, candidate);
+          }
         }
       }
-      logger?.info({ file }, 'Loaded command module');
+      logger?.info({ file, count: candidateList.length }, 'Loaded command module');
     } catch (err) {
       logger?.error({ err, file }, 'Failed to load command module');
     }
