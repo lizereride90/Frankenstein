@@ -289,6 +289,16 @@ const baseCommands = [
   }),
 ];
 
+const toFullWidth = (str) =>
+  str.replace(/[!-~]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0xfee0));
+
+const shiftText = (text, shift) =>
+  text.replace(/[a-z]/gi, (c) => {
+    const base = c >= 'a' ? 97 : 65;
+    const code = ((c.charCodeAt(0) - base + shift + 26) % 26) + base;
+    return String.fromCharCode(code);
+  });
+
 const extraCommands = [
   choices('poll', 'Create a quick yes/no poll', [{ type: 'string', name: 'question', description: 'Question', required: true }], async (i) => {
     const q = i.options.getString('question', true);
@@ -389,12 +399,159 @@ const extraCommands = [
     const sum = rolls.reduce((a, b) => a + b, 0);
     await i.reply(`🎲 ${count}d${sides}: ${rolls.join(', ')} (sum ${sum})`);
   }),
+  choices('botinfo', 'Show bot info', [], async (i) => {
+    const client = i.client;
+    await i.reply(`Bot: ${client.user?.tag}\nServers: ${client.guilds.cache.size}\nUsers (cached): ${client.users.cache.size}`);
+  }),
+  choices('servericon', 'Get this server icon', [], async (i) => {
+    if (!i.guild) return i.reply({ content: 'Guild only.', ephemeral: true });
+    const url = i.guild.iconURL({ size: 512, extension: 'png' });
+    await i.reply(url ?? 'No icon set.');
+  }),
+  choices('serverbanner', 'Get this server banner', [], async (i) => {
+    if (!i.guild) return i.reply({ content: 'Guild only.', ephemeral: true });
+    const url = i.guild.bannerURL({ size: 1024, extension: 'png' });
+    await i.reply(url ?? 'No banner set.');
+  }),
+  choices('channelinfo', 'Info about this channel', [], async (i) => {
+    if (!i.channel || !i.channel.isTextBased()) return i.reply({ content: 'Text channels only.', ephemeral: true });
+    await i.reply(`Channel: ${i.channel}\nID: ${i.channel.id}\nTopic: ${i.channel.topic ?? 'None'}\nNSFW: ${i.channel.nsfw}`);
+  }),
+  choices('roleinfo', 'Info about a role', [{ type: 'role', name: 'role', description: 'Role', required: true }], async (i) => {
+    const role = i.options.getRole('role', true);
+    await i.reply(
+      `Role: ${role.name}\nID: ${role.id}\nColor: ${role.hexColor}\nMembers: ${role.members.size}\nHoisted: ${role.hoist}`,
+    );
+  }),
+  choices('emoji', 'Get emoji image URL', [{ type: 'string', name: 'emoji', description: 'Custom emoji', required: true }], async (i) => {
+    const raw = i.options.getString('emoji', true);
+    const match = raw.match(/<(a?):(\w+):(\d+)>/);
+    if (!match) return i.reply({ content: 'Provide a custom emoji like <:name:id>.', ephemeral: true });
+    const animated = match[1] === 'a';
+    const id = match[3];
+    const url = `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}?size=512`;
+    await i.reply(url);
+  }),
+  choices('snowflake', 'Convert snowflake to timestamp', [{ type: 'string', name: 'id', description: 'Snowflake ID', required: true }], async (i) => {
+    const id = i.options.getString('id', true);
+    const asInt = BigInt(id);
+    const epoch = 1420070400000n;
+    const ms = Number((asInt >> 22n) + epoch);
+    await i.reply(`${new Date(ms).toISOString()}`);
+  }),
+  choices('hex2dec', 'Hex to decimal', [{ type: 'string', name: 'hex', description: 'Hex number', required: true }], async (i) => {
+    const hex = i.options.getString('hex', true).replace(/^0x/, '');
+    const dec = parseInt(hex, 16);
+    if (Number.isNaN(dec)) return i.reply({ content: 'Invalid hex.', ephemeral: true });
+    await i.reply(dec.toString());
+  }),
+  choices('dec2hex', 'Decimal to hex', [{ type: 'integer', name: 'dec', description: 'Decimal number', required: true }], async (i) => {
+    const dec = i.options.getInteger('dec', true);
+    await i.reply('0x' + dec.toString(16));
+  }),
+  choices('bin2dec', 'Binary to decimal', [{ type: 'string', name: 'bin', description: 'Binary number', required: true }], async (i) => {
+    const bin = i.options.getString('bin', true);
+    const dec = parseInt(bin, 2);
+    if (Number.isNaN(dec)) return i.reply({ content: 'Invalid binary.', ephemeral: true });
+    await i.reply(dec.toString());
+  }),
+  choices('dec2bin', 'Decimal to binary', [{ type: 'integer', name: 'dec', description: 'Decimal number', required: true }], async (i) => {
+    const dec = i.options.getInteger('dec', true);
+    await i.reply(dec.toString(2));
+  }),
+  choices('c2f', 'Celsius to Fahrenheit', [{ type: 'integer', name: 'c', description: 'Celsius', required: true }], async (i) => {
+    const c = i.options.getInteger('c', true);
+    await i.reply(`${((c * 9) / 5 + 32).toFixed(2)} °F`);
+  }),
+  choices('f2c', 'Fahrenheit to Celsius', [{ type: 'integer', name: 'f', description: 'Fahrenheit', required: true }], async (i) => {
+    const f = i.options.getInteger('f', true);
+    await i.reply(`${(((f - 32) * 5) / 9).toFixed(2)} °C`);
+  }),
+  choices('km2mi', 'Kilometers to miles', [{ type: 'number', name: 'km', description: 'Kilometers', required: true }], async (i) => {
+    const km = Number(i.options.getNumber('km', true));
+    await i.reply(`${(km * 0.621371).toFixed(3)} mi`);
+  }),
+  choices('mi2km', 'Miles to kilometers', [{ type: 'number', name: 'mi', description: 'Miles', required: true }], async (i) => {
+    const mi = Number(i.options.getNumber('mi', true));
+    await i.reply(`${(mi / 0.621371).toFixed(3)} km`);
+  }),
+  choices('kg2lb', 'Kilograms to pounds', [{ type: 'number', name: 'kg', description: 'Kilograms', required: true }], async (i) => {
+    const kg = Number(i.options.getNumber('kg', true));
+    await i.reply(`${(kg * 2.20462).toFixed(3)} lb`);
+  }),
+  choices('lb2kg', 'Pounds to kilograms', [{ type: 'number', name: 'lb', description: 'Pounds', required: true }], async (i) => {
+    const lb = Number(i.options.getNumber('lb', true));
+    await i.reply(`${(lb / 2.20462).toFixed(3)} kg`);
+  }),
+  choices('urlencode', 'URL-encode text', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply(encodeURIComponent(i.options.getString('text', true)).slice(0, 1900));
+  }),
+  choices('urldecode', 'URL-decode text', [{ type: 'string', name: 'text', description: 'Encoded text', required: true }], async (i) => {
+    try {
+      await i.reply(decodeURIComponent(i.options.getString('text', true)));
+    } catch {
+      await i.reply({ content: 'Invalid encoded text.', ephemeral: true });
+    }
+  }),
+  choices('caesar', 'Caesar cipher shift', [
+    { type: 'string', name: 'text', description: 'Text', required: true },
+    { type: 'integer', name: 'shift', description: 'Shift (-25 to 25)', required: true, min: -25, max: 25 },
+  ], async (i) => {
+    const text = i.options.getString('text', true);
+    const shift = i.options.getInteger('shift', true);
+    await i.reply(shiftText(text, shift));
+  }),
+  choices('fullwidth', 'Vaporwave / full-width text', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply(toFullWidth(i.options.getString('text', true)).slice(0, 1900));
+  }),
+  choices('bold', 'Bold your text', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply(`**${i.options.getString('text', true)}**`);
+  }),
+  choices('italic', 'Italicize your text', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply(`*${i.options.getString('text', true)}*`);
+  }),
+  choices('code', 'Wrap in code block', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    await i.reply('```' + i.options.getString('text', true).slice(0, 1900) + '```');
+  }),
+  choices('stripmd', 'Strip markdown', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true);
+    await i.reply(text.replace(/[*_`~>|]/g, ''));
+  }),
+  choices('charinfo', 'Show char codepoint', [{ type: 'string', name: 'char', description: 'Single character', required: true }], async (i) => {
+    const ch = i.options.getString('char', true);
+    const c = Array.from(ch)[0];
+    const code = c.codePointAt(0);
+    await i.reply(`'${c}' U+${code.toString(16).toUpperCase().padStart(4, '0')} (${code})`);
+  }),
+  choices('regexescape', 'Escape text for regex', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
+    const text = i.options.getString('text', true);
+    await i.reply(text.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&'));
+  }),
+  choices('calcmod', 'Modulo two numbers', [
+    { type: 'integer', name: 'a', description: 'Dividend', required: true },
+    { type: 'integer', name: 'b', description: 'Divisor', required: true },
+  ], async (i) => {
+    const a = i.options.getInteger('a', true);
+    const b = i.options.getInteger('b', true);
+    if (b === 0) return i.reply({ content: 'Divisor cannot be zero.', ephemeral: true });
+    await i.reply(`${a} mod ${b} = ${a % b}`);
+  }),
+  choices('calcavg', 'Average comma-separated numbers', [{ type: 'string', name: 'numbers', description: 'e.g. 1,2,3', required: true }], async (i) => {
+    const nums = i.options
+      .getString('numbers', true)
+      .split(',')
+      .map((n) => Number(n.trim()))
+      .filter((n) => !Number.isNaN(n));
+    if (!nums.length) return i.reply({ content: 'Provide numbers like 1,2,3', ephemeral: true });
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    await i.reply(`Average: ${avg.toFixed(3)}`);
+  }),
 ];
 
 const simpleCommands = simpleReplies.map((c) =>
   choices(c.name, c.description, [], async (i) => i.reply(c.reply)),
 );
 
-const targetCount = 60; // leaves headroom for moderation/ticket/welcome
+const targetCount = 90; // keep total under Discord's 100-command limit with other modules
 
 export const commands = [...simpleCommands, ...makeTransformCommands, ...baseCommands, ...extraCommands].slice(0, targetCount);
