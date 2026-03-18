@@ -18,14 +18,12 @@ const choices = (name, description, options = [], handler) => ({
     for (const opt of options) {
       if (opt.type === 'string') b.addStringOption((o) => o.setName(opt.name).setDescription(opt.description).setRequired(opt.required ?? false));
       if (opt.type === 'integer')
-        b.addIntegerOption((o) =>
-          o
-            .setName(opt.name)
-            .setDescription(opt.description)
-            .setRequired(opt.required ?? false)
-            .setMinValue(opt.min ?? undefined)
-            .setMaxValue(opt.max ?? undefined),
-        );
+        b.addIntegerOption((o) => {
+          o.setName(opt.name).setDescription(opt.description).setRequired(opt.required ?? false);
+          if (opt.min !== undefined) o.setMinValue(opt.min);
+          if (opt.max !== undefined) o.setMaxValue(opt.max);
+          return o;
+        });
       if (opt.type === 'user')
         b.addUserOption((o) => o.setName(opt.name).setDescription(opt.description).setRequired(opt.required ?? false));
       if (opt.type === 'boolean')
@@ -291,18 +289,112 @@ const baseCommands = [
   }),
 ];
 
-// Generate filler utility commands to reach 100 total in this module
-const fillerNames = Array.from({ length: 100 }, (_, idx) => `extra${idx + 1}`);
-const fillerCommands = fillerNames.map((name, idx) =>
-  choices(name, `Utility slot ${idx + 1}`, [], async (i) => {
-    await i.reply(`Command **${name}** is active. Have a great day!`);
+const extraCommands = [
+  choices('poll', 'Create a quick yes/no poll', [{ type: 'string', name: 'question', description: 'Question', required: true }], async (i) => {
+    const q = i.options.getString('question', true);
+    const msg = await i.reply({ content: `📊 ${q}\n👍 Yes\n👎 No`, fetchReply: true });
+    await msg.react('👍').catch(() => {});
+    await msg.react('👎').catch(() => {});
   }),
-);
+  choices(
+    'slowmode',
+    'Set slowmode for this channel',
+    [{ type: 'integer', name: 'seconds', description: '0 to disable', required: true, min: 0, max: 21600 }],
+    async (i) => {
+      if (!i.channel?.isTextBased() || !i.memberPermissions?.has('ManageChannels')) {
+        return i.reply({ content: 'Manage Channels required.', ephemeral: true });
+      }
+      const sec = i.options.getInteger('seconds', true);
+      await i.channel.setRateLimitPerUser(sec, `Set by ${i.user.tag}`);
+      await i.reply(`Slowmode set to ${sec}s.`);
+    },
+  ),
+  choices('lock', 'Lock this channel (deny Send Messages)', [], async (i) => {
+    if (!i.channel?.isTextBased() || !i.memberPermissions?.has('ManageChannels')) {
+      return i.reply({ content: 'Manage Channels required.', ephemeral: true });
+    }
+    await i.channel.permissionOverwrites.edit(i.guild.roles.everyone, { SendMessages: false });
+    await i.reply('Channel locked.');
+  }),
+  choices('unlock', 'Unlock this channel', [], async (i) => {
+    if (!i.channel?.isTextBased() || !i.memberPermissions?.has('ManageChannels')) {
+      return i.reply({ content: 'Manage Channels required.', ephemeral: true });
+    }
+    await i.channel.permissionOverwrites.edit(i.guild.roles.everyone, { SendMessages: null });
+    await i.reply('Channel unlocked.');
+  }),
+  choices(
+    'nickname',
+    'Change a user nickname',
+    [
+      { type: 'user', name: 'user', description: 'Target user', required: true },
+      { type: 'string', name: 'nick', description: 'New nickname (empty to clear)', required: false },
+    ],
+    async (i) => {
+      if (!i.memberPermissions?.has('ManageNicknames')) {
+        return i.reply({ content: 'Manage Nicknames required.', ephemeral: true });
+      }
+      const member = i.options.getMember('user');
+      if (!member) return i.reply({ content: 'Member not found.', ephemeral: true });
+      const nick = i.options.getString('nick') ?? '';
+      await member.setNickname(nick || null, `Set by ${i.user.tag}`).catch(() => {});
+      await i.reply(nick ? `Nickname set to "${nick}".` : 'Nickname cleared.');
+    },
+  ),
+  choices(
+    'purgeuser',
+    'Delete last messages from a user (max 100)',
+    [
+      { type: 'user', name: 'user', description: 'User to target', required: true },
+      { type: 'integer', name: 'count', description: 'Messages to scan (1-100)', required: false, min: 1, max: 100 },
+    ],
+    async (i) => {
+      if (!i.channel?.isTextBased() || !i.memberPermissions?.has('ManageMessages')) {
+        return i.reply({ content: 'Manage Messages required.', ephemeral: true });
+      }
+      const user = i.options.getUser('user', true);
+      const limit = i.options.getInteger('count') ?? 50;
+      const messages = await i.channel.messages.fetch({ limit });
+      const toDelete = messages.filter((m) => m.author.id === user.id).first(100);
+      await i.channel.bulkDelete(toDelete, true);
+      await i.reply({ content: `Deleted ${toDelete.length} messages from ${user.tag}.`, ephemeral: true });
+    },
+  ),
+  choices('rollstat', 'Roll 4d6 drop lowest (ability score)', [], async (i) => {
+    const roll = () => {
+      const dice = [0, 0, 0, 0].map(() => 1 + Math.floor(Math.random() * 6)).sort((a, b) => b - a);
+      return { dice, total: dice[0] + dice[1] + dice[2] };
+    };
+    const { dice, total } = roll();
+    await i.reply(`🎲 Rolled: ${dice.join(', ')} -> **${total}**`);
+  }),
+  choices('pickmember', 'Pick a random online member', [], async (i) => {
+    if (!i.guild) return i.reply({ content: 'Guild only.', ephemeral: true });
+    const members = await i.guild.members.fetch({ withPresences: true });
+    const pool = members.filter((m) => !m.user.bot).map((m) => m);
+    if (!pool.length) return i.reply('No members to pick from.');
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    await i.reply(`🎯 Selected: ${chosen.user.tag}`);
+  }),
+  choices('shrug', 'Send a shrug', [], async (i) => i.reply('¯\\\\_(ツ)_/¯')),
+  choices('flip', 'Flip a table', [], async (i) => i.reply('(╯°□°）╯︵ ┻━┻')),
+  choices('unflip', 'Put the table back', [], async (i) => i.reply('┬─┬ ノ( ゜-゜ノ)')),
+  choices('dicepool', 'Roll NdM dice', [
+    { type: 'integer', name: 'count', description: 'Number of dice', required: true, min: 1, max: 50 },
+    { type: 'integer', name: 'sides', description: 'Sides per die', required: true, min: 2, max: 1000 },
+  ], async (i) => {
+    const count = i.options.getInteger('count', true);
+    const sides = i.options.getInteger('sides', true);
+    const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * sides));
+    const sum = rolls.reduce((a, b) => a + b, 0);
+    await i.reply(`🎲 ${count}d${sides}: ${rolls.join(', ')} (sum ${sum})`);
+  }),
+];
 
 const simpleCommands = simpleReplies.map((c) =>
   choices(c.name, c.description, [], async (i) => i.reply(c.reply)),
 );
 
-const targetCount = 88; // leave room for ticket + welcome commands, keep total under 100
+const targetCount = 60; // leaves headroom for moderation/ticket/welcome
 
-export const commands = [...simpleCommands, ...makeTransformCommands, ...baseCommands, ...fillerCommands].slice(0, targetCount);
+export const commands = [...simpleCommands, ...makeTransformCommands, ...baseCommands, ...extraCommands].slice(0, targetCount);
