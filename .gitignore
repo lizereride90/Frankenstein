@@ -1,34 +1,26 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.parcel-cache/
+.turbo/
+.vercel/
+
+# Env & local config
 .env
 .env.*
-*.log
-.venv/
-venv/
 .env.local
-
-# Local config
 config/local.json
 
-# VS Code
-.vscode/
-
-# macOS
-.DS_Store
-
-# PyInstaller / build
-build/
+# Builds / coverage
 dist/
-*.spec
+build/
+coverage/
 
-# Mypy/coverage
-.mypy_cache/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Data
-/data/*.db
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

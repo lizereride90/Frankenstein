@@ -1,75 +1,57 @@
-# Frankenstein
+# Frankenstein (JS)
 
-A modular, JSON-driven Discord bot scaffold built with `discord.py` 2.x.
+All‑in‑one Discord bot scaffold built with **discord.js v14**. Zero commands are shipped; drop your own modules into `commands/` and they will auto‑load and sync.
 
-- Auto‑discovers cogs from the `commands/` package.
-- Loads settings from `config/defaults.json` + optional `config/local.json` + environment variables.
-- Uses a `.env` file for sensitive values (token, client IDs, etc.).
-- Ready for both prefix commands and application commands (slash, context menus).
-- No economy system included; add only the modules you want.
+## Features
+- JavaScript (ESM), Node 18+.
+- Auto command handler scans `commands/*.js` for slash and prefix handlers.
+- JSON config (`config/defaults.json` + optional `config/local.json`) with `.env` overrides.
+- Slash commands auto‑synced (guild‑first if `DISCORD_GUILD_ID` is set).
+- No economy code included—plug in only what you want.
 
 ## Quick start
-
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
-pip install -r requirements.txt
-cp .env.example .env
-# edit .env and set DISCORD_TOKEN, optionally DISCORD_GUILD_ID for fast command sync
-python main.py
+npm install
+cp .env.example .env   # fill in DISCORD_TOKEN and DISCORD_CLIENT_ID
+npm start
 ```
 
-## Configuration
-
-- `config/defaults.json`: base settings (prefix, presence, logging).
-- `config/local.json`: optional overrides, ignored by Git. Create it to tweak per-environment settings.
-- Environment variables (via `.env` or shell) override JSON values:
-  - `DISCORD_TOKEN` (required)
-  - `DISCORD_CLIENT_ID`
-  - `DISCORD_GUILD_ID` (dev guild for faster slash-command sync)
-  - `COMMAND_PREFIX`
-  - `STATUS_MESSAGE`
-  - `LOG_LEVEL`
+## Environment
+- `DISCORD_TOKEN` (required)
+- `DISCORD_CLIENT_ID` (required)
+- `DISCORD_GUILD_ID` (optional; dev guild for faster slash sync)
+- `COMMAND_PREFIX` (default `!`)
+- `STATUS_MESSAGE` (presence text)
+- `LOG_LEVEL` (pino level, default `INFO`)
 
 ## Adding commands
+Create a file under `commands/` that exports at least `data` (SlashCommandBuilder) and `execute(interaction)`:
+```js
+// commands/ping.js
+import { SlashCommandBuilder } from 'discord.js';
 
-1. Create a file in `commands/`, e.g. `commands/moderation.py`.
-2. Define a cog and expose an async `setup(bot)` function:
+export const data = new SlashCommandBuilder()
+  .setName('ping')
+  .setDescription('Replies with pong.');
 
-```python
-from discord.ext import commands
-
-class Moderation(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-
-    @commands.command()
-    async def ping(self, ctx: commands.Context):
-        await ctx.send("Pong!")
-
-async def setup(bot):
-    await bot.add_cog(Moderation(bot))
+export async function execute(interaction) {
+  await interaction.reply('pong');
+}
 ```
-
-3. Restart the bot. The loader will import every module in `commands/` automatically.
+For prefix/legacy commands, add `executeMessage(message, args)` and optional `aliases`.
 
 ## Project layout
-
 ```
-frankenstein-bot/
-  main.py               # entry point
-  requirements.txt
-  config/defaults.json
-  config/local.json     # optional, not tracked
-  commands/             # add cogs here
-  frankenstein/         # bot core
-    bot.py
-    config.py
-    logger.py
-    utils/paths.py
-  data/                 # place persistent files/db here
+src/
+  index.js            # entrypoint
+  core/               # client, loader, logger
+  config/             # config loader
+commands/             # put command modules here
+config/defaults.json  # base settings
+data/                 # persistent storage (left empty)
+.env.example          # template env vars
 ```
 
 ## Notes
-- The bot sets message content, members, and presence intents. Enable the Message Content intent in your bot settings if you plan to use prefix commands.
-- By default, slash commands sync to the dev guild specified in `DISCORD_GUILD_ID`; remove that env var to sync globally (slower propagation).
+- Enable the Message Content intent in your Discord bot settings if you use prefix commands.
+- Slash commands are registered to the dev guild when `DISCORD_GUILD_ID` is set; remove it to sync globally (slower).
