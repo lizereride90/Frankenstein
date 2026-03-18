@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { Collection, SlashCommandBuilder } from 'discord.js';
+import { Collection, SlashCommandBuilder, ContextMenuCommandBuilder } from 'discord.js';
 
 /**
  * Loads command modules from a directory.
@@ -21,7 +21,10 @@ export const loadCommands = async (commandsPath, logger) => {
     const fullPath = path.join(commandsPath, file);
     try {
       const mod = await import(pathToFileURL(fullPath).href);
-      if (mod.data instanceof SlashCommandBuilder && typeof mod.execute === 'function') {
+      if (
+        (mod.data instanceof SlashCommandBuilder || mod.data instanceof ContextMenuCommandBuilder) &&
+        typeof mod.execute === 'function'
+      ) {
         slashCommands.push(mod);
       }
       const name = mod.name || mod.data?.name;

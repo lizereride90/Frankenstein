@@ -1,5 +1,6 @@
 import { Client, Collection, GatewayIntentBits, Partials, REST, Routes } from 'discord.js';
 import { loadCommands } from './commandLoader.js';
+import { ensureDataFiles, readSettings, writeSettings } from '../utils/storage.js';
 
 export class FrankensteinClient extends Client {
   constructor(config, logger) {
@@ -18,9 +19,13 @@ export class FrankensteinClient extends Client {
     this.log = logger;
     this.messageCommands = new Collection();
     this.slashCommands = [];
+    this.settings = { autoroleId: null, blacklist: [] };
   }
 
   async init() {
+    ensureDataFiles(this.config.dataDir);
+    this.settings = readSettings(this.config.dataDir);
+
     const commandsDir = this.config.commandsPath;
     const { slashCommands, messageCommands } = await loadCommands(commandsDir, this.log);
     this.slashCommands = slashCommands;
@@ -54,6 +59,31 @@ export class FrankensteinClient extends Client {
 
     this.on('messageCreate', async (message) => {
       if (message.author.bot) return;
+
+      // Mention response
+      if (message.mentions.has(this.user) && message.content.trim() === `<@${this.user.id}>`) {
+        await message.reply('hi i am Frankenstein made by raizel');
+        return;
+      }
+
+      // Blacklist filter
+      if (this.settings.blacklist.length) {
+        const lower = message.content.toLowerCase();
+        const hit = this.settings.blacklist.find((w) => lower.includes(w));
+        if (hit) {
+          try {
+            await message.delete();
+            await message.channel.send({
+              content: `${message.author}, that word is not allowed here.`,
+              allowedMentions: { users: [message.author.id] },
+            });
+          } catch (err) {
+            this.log.error({ err }, 'Failed to delete blacklisted message');
+          }
+          return;
+        }
+      }
+
       if (!message.content.startsWith(this.config.prefix)) return;
 
       const args = message.content.slice(this.config.prefix.length).trim().split(/\s+/);
@@ -66,6 +96,17 @@ export class FrankensteinClient extends Client {
       } catch (err) {
         this.log.error({ err, command: name }, 'Message command error');
         await message.reply('Something went wrong running that command.');
+      }
+    });
+
+    this.on('guildMemberAdd', async (member) => {
+      if (!this.settings.autoroleId) return;
+      const role = member.guild.roles.cache.get(this.settings.autoroleId);
+      if (!role) return;
+      try {
+        await member.roles.add(role, 'autorole enabled');
+      } catch (err) {
+        this.log.error({ err }, 'Failed to add autorole');
       }
     });
   }
@@ -116,5 +157,10 @@ export class FrankensteinClient extends Client {
       ],
       status: presence.status || 'online',
     });
+  }
+
+  updateSettings(next) {
+    this.settings = { ...this.settings, ...next };
+    writeSettings(this.config.dataDir, this.settings);
   }
 }
