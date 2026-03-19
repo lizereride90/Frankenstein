@@ -162,48 +162,6 @@ const baseCommands = [
     const ts = i.options.getInteger('seconds', true);
     await i.reply(`${time(new Date(ts * 1000))} | ${time(new Date(ts * 1000), 'R')}`);
   }),
-  choices('calcadd', 'Add two numbers', [
-    { type: 'integer', name: 'a', description: 'First number', required: true, min: -1_000_000, max: 1_000_000 },
-    { type: 'integer', name: 'b', description: 'Second number', required: true, min: -1_000_000, max: 1_000_000 },
-  ], async (i) => {
-    const a = i.options.getInteger('a', true);
-    const b = i.options.getInteger('b', true);
-    await i.reply(`${a} + ${b} = ${a + b}`);
-  }),
-  choices('calcsub', 'Subtract two numbers', [
-    { type: 'integer', name: 'a', description: 'First number', required: true },
-    { type: 'integer', name: 'b', description: 'Second number', required: true },
-  ], async (i) => {
-    const a = i.options.getInteger('a', true);
-    const b = i.options.getInteger('b', true);
-    await i.reply(`${a} - ${b} = ${a - b}`);
-  }),
-  choices('calcmul', 'Multiply two numbers', [
-    { type: 'integer', name: 'a', description: 'First number', required: true },
-    { type: 'integer', name: 'b', description: 'Second number', required: true },
-  ], async (i) => {
-    const a = i.options.getInteger('a', true);
-    const b = i.options.getInteger('b', true);
-    await i.reply(`${a} × ${b} = ${a * b}`);
-  }),
-  choices('calcdiv', 'Divide two numbers', [
-    { type: 'integer', name: 'a', description: 'First number', required: true },
-    { type: 'integer', name: 'b', description: 'Second number', required: true },
-  ], async (i) => {
-    const a = i.options.getInteger('a', true);
-    const b = i.options.getInteger('b', true);
-    if (b === 0) return i.reply({ content: 'Division by zero.', ephemeral: true });
-    await i.reply(`${a} ÷ ${b} = ${(a / b).toFixed(4)}`);
-  }),
-  choices('percent', 'Percentage of a number', [
-    { type: 'integer', name: 'part', description: 'Part', required: true },
-    { type: 'integer', name: 'whole', description: 'Whole', required: true },
-  ], async (i) => {
-    const part = i.options.getInteger('part', true);
-    const whole = i.options.getInteger('whole', true);
-    if (whole === 0) return i.reply({ content: 'Whole cannot be zero.', ephemeral: true });
-    await i.reply(`${((part / whole) * 100).toFixed(2)}%`);
-  }),
   choices('palindrome', 'Check if text is a palindrome', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
     const text = i.options.getString('text', true).toLowerCase().replace(/[^a-z0-9]/g, '');
     const is = text === text.split('').reverse().join('');
@@ -526,25 +484,6 @@ const extraCommands = [
   choices('regexescape', 'Escape text for regex', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
     const text = i.options.getString('text', true);
     await i.reply(text.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&'));
-  }),
-  choices('calcmod', 'Modulo two numbers', [
-    { type: 'integer', name: 'a', description: 'Dividend', required: true },
-    { type: 'integer', name: 'b', description: 'Divisor', required: true },
-  ], async (i) => {
-    const a = i.options.getInteger('a', true);
-    const b = i.options.getInteger('b', true);
-    if (b === 0) return i.reply({ content: 'Divisor cannot be zero.', ephemeral: true });
-    await i.reply(`${a} mod ${b} = ${a % b}`);
-  }),
-  choices('calcavg', 'Average comma-separated numbers', [{ type: 'string', name: 'numbers', description: 'e.g. 1,2,3', required: true }], async (i) => {
-    const nums = i.options
-      .getString('numbers', true)
-      .split(',')
-      .map((n) => Number(n.trim()))
-      .filter((n) => !Number.isNaN(n));
-    if (!nums.length) return i.reply({ content: 'Provide numbers like 1,2,3', ephemeral: true });
-    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    await i.reply(`Average: ${avg.toFixed(3)}`);
   }),
   choices('snakecase', 'Convert to snake_case', [{ type: 'string', name: 'text', description: 'Text', required: true }], async (i) => {
     const text = i.options.getString('text', true).trim();
